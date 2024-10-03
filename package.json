@@ -1,0 +1,14 @@
+{
+  "name": "cac_backend0.1",
+  "version": "1.0.0",
+  "description": "Backend code for a video stremming app",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "javaScript"
+  ],
+  "author": "Yash Sharma",
+  "license": "ISC"
+}
