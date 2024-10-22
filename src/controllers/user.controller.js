@@ -32,7 +32,7 @@ const registerUser = asyncHandler( async (req,res) => {
         
     }
 
-    const existedUser = User.findOne({
+    const existedUser = await User.findOne({
         $or : [{ email }, { username }]
     })
 
@@ -42,7 +42,14 @@ const registerUser = asyncHandler( async (req,res) => {
     // we have all the access from req.body from express but we have multer middleware as well which gives us access to the .files to handle  multiple files
     // [0] is the first porperty of multer and if we take it optionally ( ? denotes optionally (may or maynot case)) so we can take the path of the folder
     const avatarLocalPath = req.files?.avatar[0]?.path;
-    const coverImageLocalPath = req.files?.coverImage[0]?.path;
+    // const coverImageLocalPath = req.files?.coverImage[0]?.path;
+
+    let coverImageLocalPath;
+    if(req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length>0){
+        coverImageLocalPath = req.files.coverImageLocalPath[0].path
+    }
+
+
 
     if(!avatarLocalPath){
         throw new apiErrors(400,"Avatar is required");
@@ -86,4 +93,16 @@ const registerUser = asyncHandler( async (req,res) => {
 
 })
 
-export {registerUser}
+const loginUser = asyncHandler(async(req,res) =>{
+    // req body- data
+    // username or email
+    // find the user
+    // password check
+    // access and refresh token
+    // 
+})
+
+export {
+    registerUser,
+    loginUser
+}
