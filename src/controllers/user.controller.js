@@ -3,6 +3,7 @@ import {apiErrors} from "../utils/apiErrors.js"
 import {User} from "../models/user.model.js"
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { apiResponse } from "../utils/apiResponse.js";
+import JWT from "jsonwebtoken";
 
 const generateAccessAndRefreshTokens = async(userId) =>{
     try {
@@ -117,17 +118,20 @@ const loginUser = asyncHandler(async(req,res) =>{
     // username or email
     // find the user
     // password check
-    // access and refresh toke
+    // access and refresh token // USE OF REFRESH AND ACCESS IS TOKEN IS USED AS AS REFERENCE SO THE USER DOESN'T HAS TO LOGIN EVERYTIME IT USES THE APPLICATION
+    // ACCESS TOKEN IS SHORT LIFE SPAN AND THE REFRESH TOKEN IS USED FOR A LING TIME SPAN 
     // send cookies
 
     // step 1 req data
     const{email,username,password} = req.body
 
     // step 2 checking username and email
-    if(!username || !email){
-        throw new apiErrors("username or email is required");
+    if (!username && !email) {
+        throw new apiErrors(400,"username or email is required");
+    } 
         
-    }
+        
+    
     const user = await User.findOne({
         $or :[{username},{email}]
     })
@@ -148,7 +152,8 @@ const loginUser = asyncHandler(async(req,res) =>{
 
     const {accessToken, refreshToken} = await generateAccessAndRefreshTokens(user._id)
 
-    const loggedInUser = await User.findById(user._id).select("-password -refreshToken")
+    const loggedInUser = await User.findById(user._id)
+    .select("-password -refreshToken")
 
     const options = {
         httpOnly : true, // when you put httpOnly and secure as true in the cookies only the sever can modify it
@@ -196,9 +201,58 @@ const logoutuser = asyncHandler(async(req,res) =>{
     .clearCookie("referenceToken",options)
     .json(new apiResponse(200,"User Loggedout successfully"))
 })
+const refreshAccessToken = asyncHandler(async(req,res) => {
+    // Step 1 - we take the refresh token from the user either in the form of coodies or from body
+    // we use body because what if the user is using the web app on the phone
+    const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken
 
+    if (!incomingRefreshToken){
+        throw new apiErrors(401,"unauthorized request");
+    }
+    // Step 2 we will verify the token
+    try {
+        const decodedToken = jwt.verify(
+            incomingRefreshToken, 
+            process.env.REFRESH_TOKEN_SECRET
+        )
+        // step 3 we will find the user and take the decoded refresh token from them using the decoded token we made in auth.middleware
+        const user = await User.findById(decodedToken?._id)
+    
+        if(!user){
+            throw new apiErrors(401,"invalid refresh token");
+        }
+    
+        if (incomingRefreshToken !== user?.refreshToken){
+            throw new apiErrors(401, "Refresh token is expired or used");
+            
+        }
+    
+        const options ={
+            httpOnly : true,
+            secure : true
+        } 
+    
+        const {accessToken, newrefreshToken} = await generateAccessAndRefreshTokens(user._id)
+    
+        return res
+        .status(200)
+        .cookie("accessToken",accessToken,options )
+        .cookie("refreshToken", newrefreshToken,options)
+        .json(
+            new apiResponse(
+                200,
+                {accessToken,refreshToken : newrefreshToken},
+                "Access Token Refreshed"
+            )
+        )
+    } catch (error) {
+        throw new apiErrors(401,"Invalid refresh token");
+        
+    }
+})
 export {
     registerUser,
     loginUser,
-    logoutuser
+    logoutuser,
+    refreshAccessToken
 }
