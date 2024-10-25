@@ -250,9 +250,126 @@ const refreshAccessToken = asyncHandler(async(req,res) => {
         
     }
 })
+
+const ChangeCurrentPassword = asyncHandler(async(req,res) =>{
+    const {oldpassword,newPassword,confirmPassword} = req.body
+
+    if(!newPassword === confirmPassword){
+        throw new apiErrors(401,"confirmed password is wrong");
+        
+    }
+    
+    const user = await User.findById(req.user?._id)
+    const isPasswordCorrect = await user.isPasswordCorrect(oldpassword)
+
+    if(!isPasswordCorrect){
+        throw new apiErrors(401,"Password is Incorrect");    
+    }
+
+    user.password = newpassword // reference for this code we can take form ../modles/user.model.js line 51 - 55 there in the code it is said that if the password is not modified then it will go to next middleware but if not then bcrypt will hash it.
+    await user.save({validateBeforeSave: false})
+
+    return res
+    .status(200)
+    .json(new apiResponse(200, {},"Password is changed"))
+})
+
+const getCurrentUser = asyncHandler(async(req,res) =>{
+    return res
+    .status(200),
+    json(200,req.user,"Current user fetched successfully")
+})
+
+const updateAccountDetails = asyncHandler(async(req,res) =>{
+    const {fullName,email} = req.body 
+
+    if (!fullName || !email){
+        throw new apiErrors(401,"All the fields are required");
+        
+    }
+
+    const user = User.findByIdAndUpdate(
+        req.user?._id,
+        {
+            // mongo DB operator set
+            $set: {
+                fullName,
+                email
+            }
+        },
+        {new :true} // this new keyword give us the updated information back
+    ).select("-password ")
+
+    return res
+    .status(200)
+    .json(new apiResponse(200,user,"Account details updates successfully"))
+})
+
+// now we are updating the avatar
+
+const updateUserAvatar = asyncHandler(async(req,res) =>{
+    const avatarLocalPath = req.file?.path
+
+    if(!avatarLocalPath){
+        throw new apiErrors(401,"Avatar file is missing"); 
+    }
+
+    const avatar = await uploadOnCloudinary(avatarLocalPath)
+
+    if (!avatar.url) {
+        throw new apiErrors(400,"Error while uploading on avatar");
+    }
+
+    await User.findByIdAndUpdate(
+        req.user?._id,
+        {
+            $set : {
+                avatar: avatar.url
+            }
+        },
+        {new: true}
+    ).select("-password")
+})
+const updatenewUserCoverImage = asyncHandler(async(req,res) =>{
+    const coverImageLocalPath = req.file?.path
+
+    if(!coverImageLocalPath){
+        throw new apiErrors(401,"Cover Image file is missing"); 
+    }
+
+    const coverImage = await uploadOnCloudinary(coverImageLocalPath)
+
+    if (!coverImage.url) {
+        throw new apiErrors(400,"Error while uploading on Cover Image");
+    }
+
+    const user =await User.findByIdAndUpdate(
+        req.user?._id,
+        {
+            $set : {
+                coverImage: coverImage.url
+            }
+        },
+        {new: true}
+    ).select("-password")
+
+    return res
+    .status(200)
+    .json(new apiResponse(200,"Cover Image Update Successfully"))
+})
+
+
+
+
+
 export {
     registerUser,
     loginUser,
     logoutuser,
-    refreshAccessToken
+    refreshAccessToken,
+    ChangeCurrentPassword,
+    getCurrentUser,
+    updateAccountDetails,
+    updateUserAvatar,
+    updatenewUserCoverImage
 }
